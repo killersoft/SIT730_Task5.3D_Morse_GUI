@@ -1,0 +1,82 @@
+import sys
+import time
+import RPi.GPIO as GPIO
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QMessageBox
+
+
+class MyWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        
+        self.led_pin = 7 #Use Pin 7 of board
+        
+        GPIO.setmode(GPIO.BOARD) #Use board not BCM(Broadcom SOC channel)
+        GPIO.setwarnings(False) # Disable GPIO warnings
+        GPIO.setup(self.led_pin, GPIO.OUT) #Set LED pin as output
+       
+        self.initUI() #Init method of the MyWindow Class and get geometry of the main window
+
+    def initUI(self):
+        self.setGeometry(100, 100, 450, 150) #Set the window size
+        self.setWindowTitle('Morse Code on a PI using a GUI') #Set window title
+
+        # Create a label and a line edit for text input
+        label = QLabel('Enter morse text (max 12 characters):', self)
+        label.move(20, 20) #position the label/Qlabel
+
+        self.textbox = QLineEdit(self) #create the textbox for user entry
+        self.textbox.move(20, 40) #position the textbox
+        self.textbox.setMaxLength(12) #set character size limit of the box
+
+        # Create a button to execute the function
+        button = QPushButton('Send Morse to LED', self) #create a button 
+        button.move(20, 80) #Position the LED
+        button.clicked.connect(self.send_morse) #If the user clicks the LED then run the send_morse method
+
+    def send_morse(self):
+        morsebasedelaytime = .250 # Speed of Words per minute of morse
+        # Define Morse code dictionary A-Z, 0-9 space!
+        morse_dict = {'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.', 'G': '--.',
+                      'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.',
+                      'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-', 'U': '..-',
+                      'V': '...-', 'W': '.--', 'X': '-..-', 'Y': '-.--', 'Z': '--..', '0': '-----',
+                      '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....', '6': '-....',
+                      '7': '--...', '8': '---..', '9': '----.', ' ': ' '}
+
+        text = self.textbox.text().upper() # Morse is not case sensative so just uppercase it
+     
+        # Convert text to Morse code
+        morse = '' #clear morse string
+        for letter in text: #count the characters in the string
+            if letter in morse_dict:  #Mapping the text to char
+                morse += morse_dict[letter] #Mapping the text to char of either - or .
+            morse += ' ' #finally add a space
+
+        # Blink LED to transmit Morse code
+        for symbol in morse:  #Loop throu - & . of equivilant text
+            if symbol == ' ':
+                time.sleep(morsebasedelaytime*3)  # Space between words
+            elif symbol == '.':
+                GPIO.output(self.led_pin, GPIO.HIGH)
+                time.sleep(morsebasedelaytime)  # Dot duration
+                GPIO.output(self.led_pin, GPIO.LOW)
+                time.sleep(morsebasedelaytime)  # Inter-element gap duration
+            elif symbol == '-':
+                GPIO.output(self.led_pin, GPIO.HIGH)
+                time.sleep(morsebasedelaytime*3)  # Dash duration
+                GPIO.output(self.led_pin, GPIO.LOW)
+                time.sleep(morsebasedelaytime)  # Inter-element gap duration
+                
+                
+
+    def closeEvent(self, event):
+        # Clean up GPIO on close
+        GPIO.cleanup() # Resets any ports used in this program back to input mode
+        event.accept() #accept the event
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)   # Create a new QApplication instance
+    window = MyWindow() # Create a new instance of the MyWindow class
+    window.show() # Display the main window
+    sys.exit(app.exec_()) # Start the application event loop and exit the application when it's done
